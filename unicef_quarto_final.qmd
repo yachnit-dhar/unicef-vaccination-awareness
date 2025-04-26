@@ -1,0 +1,255 @@
+---
+title: "Global Insights: The Impact of Vaccination on Child Mortality"
+author: "Yachnit Dhar"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    toc: true
+    toc-depth: 2
+    theme: cosmo
+---
+
+
+<img src="unicef.png" alt="UNICEF Logo" style="height: 80px; margin-bottom: 20px; display: block;">
+
+## Introduction
+
+**Immunization’s Ripple Effect**
+
+Over the past four decades, the world has waged a quiet but powerful battle against child mortality. This report captures that global journey—showing how rising vaccination coverage correlates with a dramatic decline in child deaths under age five. As the orange line climbs, representing expanding vaccine access, the blue line falls—each dip reflecting countless lives saved.
+
+This analysis brings together two vital datasets—vaccination coverage and child mortality—to uncover a powerful global insight: immunization plays a critical role in reducing preventable child deaths. By analyzing trends over time, regional disparities, and the direct correlation between vaccine uptake and mortality rates, we observe a consistent pattern—countries with higher vaccination coverage experience significantly lower child mortality.
+
+---
+
+## Key Indicators
+
+- **Avg. Vaccination Coverage:** 84.36%
+- **Avg. Child Mortality Rate:** 2,717
+- **Total Countries Covered:** 195
+
+---
+
+## Global Trends Over Time
+
+*Over the decades, a consistent global pattern emerges: as vaccination coverage improves, child mortality significantly declines. This chart shows how the world has progressed collectively, with upward movement in immunization and downward trends in under-five deaths.*
+
+```{python}
+#| label: global-trends
+#| echo: true
+#| message: false
+
+import polars as pl
+import pandas as pd
+from plotnine import ggplot, aes, geom_line, labs, theme_minimal
+
+df = pl.read_csv("cleaned_unicef_data.csv")
+
+trend_df = (
+    df.group_by("time_period")
+    .agg([
+        pl.col("vaccination_coverage").mean().alias("avg_vaccination"),
+        pl.col("child_mortality").sum().alias("total_mortality")
+    ])
+    .sort("time_period")
+)
+
+
+trend_pd = trend_df.to_pandas()
+
+
+trend_pd["norm_vaccination"] = (trend_pd["avg_vaccination"] - trend_pd["avg_vaccination"].min()) / (
+    trend_pd["avg_vaccination"].max() - trend_pd["avg_vaccination"].min()
+)
+trend_pd["norm_mortality"] = (trend_pd["total_mortality"] - trend_pd["total_mortality"].min()) / (
+    trend_pd["total_mortality"].max() - trend_pd["total_mortality"].min()
+)
+
+
+melted = pd.melt(
+    trend_pd,
+    id_vars=["time_period"],
+    value_vars=["norm_vaccination", "norm_mortality"],
+    var_name="indicator",
+    value_name="value"
+)
+
+
+melted["indicator"] = melted["indicator"].map({
+    "norm_vaccination": "Vaccination Coverage",
+    "norm_mortality": "Child Mortality"
+})
+
+
+(
+    ggplot(melted, aes(x="time_period", y="value", color="indicator")) +
+    geom_line(size=1.2) +
+    labs(
+        title="Global Trends Over Time",
+        x="Year",
+        y="Relative Change Over Time",  
+        color="Indicator",
+        caption="Source: UNICEF"
+    ) +
+    theme_minimal()
+)
+
+
+
+```
+
+---
+
+## A World of Contrasts
+
+*Some countries lead the way with exceptional immunization efforts, while others still struggle with alarmingly high child mortality rates. These contrasting charts below highlight both the heroes of vaccination and the regions still in need of urgent attention.*
+
+**Best Vaccination Coverage (Top Countries)**  
+These bar charts highlight nations that lead in immunization efforts—reflecting strong healthcare systems and effective public health outreach.
+
+```{python}
+import polars as pl
+import pandas as pd
+from plotnine import ggplot, aes, geom_col, coord_flip, labs, theme_minimal
+
+
+df = pl.read_csv("cleaned_unicef_data.csv")
+
+top_vax_df = (
+    df.group_by("country")
+    .agg(pl.col("vaccination_coverage").mean().alias("avg_vax"))
+    .sort("avg_vax", descending=True)
+    .head(10)
+)
+
+
+top_vax_pd = top_vax_df.to_pandas()
+top_vax_pd["country"] = top_vax_pd["country"].astype(str).str.replace(",", "")
+top_vax_pd["avg_vax"] = pd.to_numeric(top_vax_pd["avg_vax"], errors="coerce").round(2)
+top_vax_pd = top_vax_pd.sort_values("avg_vax", ascending=True)
+
+
+(
+    ggplot(top_vax_pd, aes(x="country", y="avg_vax")) +
+    geom_col(fill="green") +  
+    coord_flip() +
+    labs(
+        title="Top 10 Countries by Vaccination Coverage",
+        x="Country",
+        y="Average Vaccination (%)",
+        caption="Source: UNICEF"
+    ) +
+    theme_minimal()
+)
+
+```
+
+**Global Child Mortality Rates (Top Countries)**  
+In contrast, countries like India, Nigeria, and Pakistan record the highest child mortality due to large populations and healthcare disparities.
+
+```{python}
+import polars as pl
+import pandas as pd
+from plotnine import ggplot, aes, geom_col, coord_flip, labs, theme_minimal
+
+df = pl.read_csv("cleaned_unicef_data.csv")
+
+
+top_mort_df = (
+    df.group_by("country")
+    .agg(pl.col("child_mortality").sum().alias("total_mortality"))
+    .sort("total_mortality", descending=True)
+    .head(10)
+)
+
+
+top_mort_pd = top_mort_df.to_pandas()
+top_mort_pd["country"] = top_mort_pd["country"].astype(str).str.replace(",", "")
+top_mort_pd["total_mortality"] = pd.to_numeric(top_mort_pd["total_mortality"], errors="coerce").round(0)
+top_mort_pd = top_mort_pd.sort_values("total_mortality", ascending=True)
+
+
+(
+    ggplot(top_mort_pd, aes(x="country", y="total_mortality")) +
+    geom_col(fill="#800000") +  
+    coord_flip() +
+    labs(
+        title="Top 10 Countries by Total Child Mortality",
+        x="Country",
+        y="Total Child Deaths",
+        caption="Source: UNICEF"
+    ) +
+    theme_minimal()
+)
+
+
+```
+
+> Even in countries with commendable vaccination coverage, the sheer number of births can result in a high total of child mortality. These visuals underscore how gaps in systemic challenges are often mirrored by preventable child deaths.
+
+---
+
+## Correlation Analysis: Every Shot Counts
+
+*This final chart zooms in on the relationship between vaccine coverage and child mortality. The negative trend reveals a powerful insight—more vaccines mean fewer child deaths. Each point is a country, and the red line tells the story: immunization saves lives.*
+
+**Every Shot Counts**
+
+This scatter plot reveals the strong relationship between vaccination and survival at the country level. Nations with higher vaccine coverage tend to see far fewer child deaths. Each dot represents a country—its position on the chart telling a unique story of progress or lag.
+
+```{python}
+import polars as pl
+import pandas as pd
+from plotnine import ggplot, aes, geom_point, geom_smooth, labs, theme_minimal
+
+
+df = pl.read_csv("cleaned_unicef_data.csv")
+
+
+correlation_df = (
+    df.group_by("country")
+    .agg([
+        pl.col("vaccination_coverage").mean().alias("avg_vax"),
+        pl.col("child_mortality").sum().alias("total_mortality")
+    ])
+)
+
+
+correlation_pd = correlation_df.to_pandas()
+correlation_pd["country"] = correlation_pd["country"].astype(str).str.replace(",", "")
+correlation_pd["avg_vax"] = pd.to_numeric(correlation_pd["avg_vax"], errors="coerce").round(2)
+correlation_pd["total_mortality"] = pd.to_numeric(correlation_pd["total_mortality"], errors="coerce").round(0)
+
+
+(
+    ggplot(correlation_pd, aes(x="avg_vax", y="total_mortality")) +
+    geom_point(color="darkblue", size=2, alpha=0.6) +
+    geom_smooth(method="lm", color="red") +
+    labs(
+        title="Correlation Between Vaccination and Child Mortality",
+        x="Average Vaccination Coverage (%)",
+        y="Total Child Mortality",
+        caption="Source: UNICEF"
+    ) +
+    theme_minimal()
+)
+
+```
+
+---
+
+## Conclusion
+
+From global patterns to country-level specifics, the data tells a story of **hope and urgency**. Hope, because the steady decline in child mortality mirrors rising immunization rates. Urgency, because disparities still exist—especially in nations where low vaccination coverage continues to put millions of children at risk.
+
+This analysis not only underscores the importance of sustained vaccination efforts but also calls for targeted action in vulnerable regions to ensure every child has a chance at a healthier future.
+
+---
+
+## References
+
+- UNICEF Datasets (via unicef_indicator_1.csv, unicef_indicator_2.csv)
+- Data cleaning and transformation using **Polars**
+- Visualizations created using **Plotnine**
+- Report published with **Quarto** and **GitHub Pages**
