@@ -22,7 +22,7 @@ Through statistical analysis and storytelling, it visualizes critical global hea
 | File/Folder | Description |
 |:------------|:------------|
 | `unicef_quarto_final.qmd` | Main Quarto file with narrative, code, and visualization |
-| `unicef_quarto_final.html` | Rendered HTML report |
+| `index.html` | Rendered HTML report |
 | `cleaned_unicef_data.csv` | Cleaned UNICEF dataset used for analysis |
 | `unicef.png` | UNICEF logo included in the report |
 | `Report.ipynb` | Supporting notebook for code experimentation |
